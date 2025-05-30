@@ -2,17 +2,15 @@ name: Daily SP500 Tracker
 
 on:
   schedule:
-    - cron: '30 22 * * *' # runs every day at 22:30 UTC
-  workflow_dispatch: # allows manual triggering
+    - cron: '30 22 * * *' # Run daily at 22:30 UTC
+  workflow_dispatch: # Allow manual run
 
 jobs:
   fetch-sp500:
     runs-on: ubuntu-latest
-    env:
-      POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Node.js
@@ -23,13 +21,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Fetch SP500 data for yesterday
+      - name: Fetch and append SP500 data
         run: node get-sp500.js
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
 
-      - name: Commit CSV
+      - name: Commit and push CSV if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add sp500-data.csv
-          git commit -m "Update SP500 data for $(date +'%Y-%m-%d')" || echo "No changes to commit"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update SP500 data for $(date -u +'%Y-%m-%d')"
+            git push
+          fi
